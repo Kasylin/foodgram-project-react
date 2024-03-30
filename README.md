@@ -1,4 +1,15 @@
+# Ссылка на проект
+https://testthemeow.webhop.me/
+
+# Доступ к админке
+Логин: DjangoAdmin
+Пароль: DjangoAdmin
+Почта: admin@admin.ru
+
+---
+
 ![example workflow](https://github.com/Kasylin/foodgram-project-react/actions/workflows/main.yml/badge.svg)
+
 
 # Описание
 
@@ -6,6 +17,60 @@
 
 ### Стек
 Django 3.2, React 17.0, Postgres, Docker
+
+# Как работает API
+## Маршрутизаторы
+API рецептов находится в приложении api, также в приложении users размещен API пользователей.
+
+![Схема](./docs/urls.png)
+
+## Вьюсет рецептов (RecipeViewSet)
+### Допольнительные/кастомные действия
+- /shopping_cart - добавление или удаление из списка покупок
+- /download_shopping_cart - скачать список покупок
+- /favorite - добавление или удаление из списка избранного
+
+### Доступы
+Т.к. в кастомных действиях обрабатываются объекты списка покупок и избранного, передаем на проверку соответствующие объекты:
+- для действий со списком покупок - объект ShoppingCart
+- для действий со списком избранного - объект FavoriteRecipes
+- дефолтный вариант для остальных действий - объект Recipe
+
+### Сериализация
+Дефолтный сериализатор вьюсета - RecipeDetailSerializer.
+
+Для объектов рецептов есть два сериализатора: 
+- RecipeSerializer - в нем задается список полей, их валидация и методы создания и обновления рецепта.
+- RecipeDetailSerializer, наследующийся от RecipeSerializer - переопределяет формат вывода данных.
+
+Для кастомных действий подключаются отдельные сериализаторы:
+- /shopping_cart - ShoppingCartSerializer
+- /download_shopping_cart - IngredientsShoppingCartSerializer
+- /favorite - FavoriteRecipesSerializer
+
+
+## Вьюсет пользователей (UsersViewSet)
+UsersViewSet наследуется от стандартного djoser.views.UserViewSet из Djoser.
+
+### Допольнительные/кастомные действия
+- /me - действие задано в стандартном вьюсете, только переопределяем доступы
+- /subscribe - создание или удаление подписки
+- /subscriptions - вывести подписки пользователя
+
+### Доступы
+Т.к. в кастомных действиях обрабатываются объекты подписок, передаем на проверку соответствующие объекты:
+- для действий с подписками - объект Subscription
+- дефолтный вариант для остальных действий - объект Use
+
+### Сериализация
+
+Для объектов пользователей есть два сериализатора: 
+- UserCreationSerializer - в нем задается список полей, их валидация и метод создания пользователя
+- UsersSerializer, наследующийся от UserCreationSerializer - добавляется поле is_subscribed
+
+Для кастомных действий подключаются отдельные сериализаторы:
+- /subscribe - SubscriptionRequestSerializer
+- /subscriptions - SubscriptionResponseSerializer
 
 # Как развернуть проект
 
