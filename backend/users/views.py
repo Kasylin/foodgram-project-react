@@ -69,13 +69,13 @@ class UsersViewSet(DjoserUserViewSet):
         return super().check_object_permissions(request, obj)
 
     @action(["get", "put", "patch", "delete"], detail=False,
-            permission_classes=[CurrentUserOrAdmin,])
+            permission_classes=(CurrentUserOrAdmin,))
     def me(self, request, *args, **kwargs):
         """Переопределяем доступы для действия /me"""
         return super().me(request, *args, **kwargs)
 
     @action(["post", "delete"], detail=True,
-            permission_classes=[IsCurrentUserOrAdmin,],
+            permission_classes=(IsCurrentUserOrAdmin,),
             serializer_class=SubscriptionRequestSerializer,
             pagination_class=LimitOffsetPagination
             )
@@ -107,7 +107,7 @@ class UsersViewSet(DjoserUserViewSet):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(["get"], detail=False,
-            permission_classes=[CurrentUserOrAdmin,],
+            permission_classes=(CurrentUserOrAdmin,),
             serializer_class=SubscriptionResponseSerializer,
             pagination_class=LimitOffsetPagination
             )

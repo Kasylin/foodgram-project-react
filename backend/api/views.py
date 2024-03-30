@@ -31,8 +31,8 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
     pagination_class = None
-    filter_backends = [filters.SearchFilter,]
-    search_fields = ['^name']
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('^name',)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -116,7 +116,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return super().check_object_permissions(request, obj)
 
     @action(["post", "delete"], detail=True,
-            permission_classes=[IsCurrentUserOrAdmin,],
+            permission_classes=(IsCurrentUserOrAdmin,),
             serializer_class=ShoppingCartSerializer,
             pagination_class=None
             )
@@ -164,7 +164,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ).annotate(amount_sum=Sum('amount'))
 
     @action(detail=False, methods=["get"],
-            renderer_classes=[TextShoppingCartRenderer,])
+            renderer_classes=(TextShoppingCartRenderer,))
     def download_shopping_cart(self, request, *args, **kwargs):
         """Кастомное действие: скачать список покупок"""
 
@@ -184,7 +184,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             })
 
     @action(["post", "delete"], detail=True,
-            permission_classes=[IsCurrentUserOrAdmin,],
+            permission_classes=(IsCurrentUserOrAdmin,),
             serializer_class=FavoriteRecipesSerializer,
             pagination_class=None
             )
