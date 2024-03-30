@@ -15,7 +15,7 @@ class IsAuthorOrAdminOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
         )
 
 
-class CurrentUserOrAdminOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
+class IsCurrentUserOrAdminOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
     """Доступы к объектам пользователей."""
 
     def has_object_permission(self, request, view, obj):

@@ -3,7 +3,6 @@ from django.http import Http404
 from django.utils import timezone
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from api.permissions import IsAuthorOrAdminOrReadOnly, IsCurrentUserOrAdmin
@@ -41,7 +40,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     permission_classes = (IsAuthorOrAdminOrReadOnly,)
     serializer_class = RecipeDetailSerializer
-    pagination_class = LimitOffsetPagination
     http_method_names = ['get', 'post', 'head', 'patch', 'delete']
 
     def get_queryset(self):

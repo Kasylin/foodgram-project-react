@@ -22,7 +22,9 @@ class Command(BaseCommand):
             print(ALREDY_LOADED_ERROR_MESSAGE)
             return
         print("Loading ingredient data")
-        for row in DictReader(open('../data/ingredients.csv', encoding='utf-8')):
+        for row in DictReader(
+            open('../data/ingredients.csv', encoding='utf-8')
+        ):
             ingredient = Ingredient(name=row['name'],
                                     measurement_unit=row['measurement_unit'])
             ingredient.save()

@@ -32,7 +32,7 @@ class UsersViewSet(DjoserUserViewSet):
                 ).order_by('id')
                 if self.action == 'subscriptions':
                     return queryset.filter(is_subscribed=True)
-                return queryset
+                return queryset.distinct()
             else:
                 queryset = User.objects.prefetch_related('followers')
                 queryset = queryset.alias(
@@ -40,7 +40,7 @@ class UsersViewSet(DjoserUserViewSet):
                         default=False,
                     )
                 ).order_by('id')
-                return queryset
+                return queryset.distinct()
 
         return User.objects.all()
 
