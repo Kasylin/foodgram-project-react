@@ -1,6 +1,7 @@
-import base64
+from http import HTTPStatus
 
-from django.core.files.base import ContentFile
+from django.db import IntegrityError, transaction
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
@@ -9,21 +10,7 @@ from users.models import FavoriteRecipes, ShoppingCart
 from users.serializers import UsersSerializer
 
 
-class Base64ImageField(serializers.ImageField):
-    """Поле для изображения закодированного в строку base64"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:image'):
-            format, imgstr = data.split(';base64,')
-            ext = format.split('/')[-1]
-
-            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
-
-        return super().to_internal_value(data)
-
-
 class IngredientSerializer(serializers.ModelSerializer):
-    """Сериализатор для ингридиентов"""
 
     class Meta:
         model = Ingredient
@@ -31,7 +18,6 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 
 class TagSerializer(serializers.ModelSerializer):
-    """Сериализатор для тегов"""
 
     class Meta:
         model = Tag
@@ -39,8 +25,6 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class IngredientRecipeSerializer(serializers.ModelSerializer):
-    """Сериализатор для модели IngredientRecipe"""
-
     id = serializers.UUIDField(required=True)
 
     class Meta:
@@ -61,35 +45,11 @@ class IngredientInRecipeSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    """Сериализатор для рецептов"""
-
     ingredients = IngredientRecipeSerializer(many=True, required=True)
     tags = serializers.PrimaryKeyRelatedField(many=True,
                                               queryset=Tag.objects.all(),
                                               required=True)
-    image = Base64ImageField(required=True, allow_null=True)
-    is_favorited = serializers.SerializerMethodField()
-    is_in_shopping_cart = serializers.SerializerMethodField()
-
-    def get_is_favorited(self, obj):
-        if (
-            self.context.get('request').user.is_authenticated
-            and obj.is_fav.filter(
-                user=self.context.get('request').user).exists()
-        ):
-            return True
-        else:
-            return False
-
-    def get_is_in_shopping_cart(self, obj):
-        if (
-            self.context.get('request').user.is_authenticated
-            and obj.is_in_cart.filter(
-                user=self.context.get('request').user).exists()
-        ):
-            return True
-        else:
-            return False
+    image = Base64ImageField(required=True)
 
     def validate_ingredients(self, value):
         if not value:
@@ -114,11 +74,17 @@ class RecipeSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_image(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'Картинка не может быть пустой.'
+            )
+        return value
+
     class Meta:
         model = Recipe
-        fields = ('id', 'tags', 'author', 'ingredients', 'is_favorited',
-                  'is_in_shopping_cart', 'name', 'image', 'text',
-                  'cooking_time')
+        fields = ('id', 'tags', 'author', 'ingredients', 'name', 'image',
+                  'text', 'cooking_time')
         read_only_fields = ('author',)
         extra_kwargs = {
             'name': {'required': True},
@@ -126,51 +92,53 @@ class RecipeSerializer(serializers.ModelSerializer):
             'cooking_time': {'required': True},
         }
 
+    @transaction.atomic
     def create(self, validated_data):
-        ingredients = validated_data.pop('ingredients')
-        tags_list = validated_data.pop('tags')
-        recipe = Recipe.objects.create(**validated_data)
-        for ingredient_data in ingredients:
-            try:
-                ingredient = Ingredient.objects.get(pk=ingredient_data['id'])
-                IngredientRecipe.objects.create(
-                    recipe=recipe,
-                    ingredient=ingredient,
-                    amount=ingredient_data['amount']
-                )
-            except Ingredient.DoesNotExist:
-                raise serializers.ValidationError(
-                    'В рецепте присутствуют несуществующие ингридинеты.',
-                    code=400
-                )
-        recipe.tags.set(tags_list)
-        return recipe
+        try:
+            with transaction.atomic():
+                ingredients = validated_data.pop('ingredients')
+                tags_list = validated_data.pop('tags')
+                recipe = Recipe.objects.create(**validated_data)
 
+                ingredient_list = [
+                    IngredientRecipe(
+                        recipe=recipe,
+                        ingredient_id=ingredient['id'],
+                        amount=ingredient['amount']
+                    ) for ingredient in ingredients
+                ]
+                IngredientRecipe.objects.bulk_create(ingredient_list)
+                recipe.tags.set(tags_list)
+                return recipe
+        except IntegrityError as err:
+            raise serializers.ValidationError(
+                err.args, code=HTTPStatus.BAD_REQUEST)
+
+    @transaction.atomic
     def update(self, instance, validated_data):
-        ingredients = validated_data.pop('ingredients')
-        tags_list = validated_data.pop('tags')
-        for key, value in validated_data.items():
-            setattr(instance, key, value)
-        instance.save()
-        if ingredients:
-            IngredientRecipe.objects.filter(recipe=instance).delete()
-            for ingredient_data in ingredients:
-                try:
-                    ingredient = Ingredient.objects.get(
-                        pk=ingredient_data['id'])
-                    IngredientRecipe.objects.create(
-                        recipe=instance,
-                        ingredient=ingredient,
-                        amount=ingredient_data['amount']
-                    )
-                except Ingredient.DoesNotExist:
-                    raise serializers.ValidationError(
-                        'В рецепте присутствуют несуществующие ингридинеты.',
-                        code=400
-                    )
-        if tags_list:
-            instance.tags.set(tags_list)
-        return instance
+        try:
+            with transaction.atomic():
+                ingredients = validated_data.pop('ingredients')
+                tags_list = validated_data.pop('tags')
+                for key, value in validated_data.items():
+                    setattr(instance, key, value)
+                instance.save()
+                if ingredients:
+                    IngredientRecipe.objects.filter(recipe=instance).delete()
+                    ingredient_list = [
+                        IngredientRecipe(
+                            recipe=instance,
+                            ingredient_id=ingredient['id'],
+                            amount=ingredient['amount']
+                        ) for ingredient in ingredients
+                    ]
+                    IngredientRecipe.objects.bulk_create(ingredient_list)
+                if tags_list:
+                    instance.tags.set(tags_list)
+                return instance
+        except IntegrityError as err:
+            raise serializers.ValidationError(
+                err.args, code=HTTPStatus.BAD_REQUEST)
 
 
 class RecipeDetailSerializer(RecipeSerializer):
@@ -185,6 +153,12 @@ class RecipeDetailSerializer(RecipeSerializer):
     tags = TagSerializer(many=True)
     author = UsersSerializer()
     ingredients = IngredientInRecipeSerializer(many=True)
+    is_favorited = serializers.BooleanField(required=False)
+    is_in_shopping_cart = serializers.BooleanField(required=False)
+
+    class Meta(RecipeSerializer.Meta):
+        fields = RecipeSerializer.Meta.fields + (
+            'is_favorited', 'is_in_shopping_cart')
 
     def to_internal_value(self, data):
         """Входные данные сериализуются через RecipeSerializer"""
@@ -196,6 +170,11 @@ class RecipeDetailSerializer(RecipeSerializer):
         Корректируем данные об ингредиентах:
         делаем из вложенного массива плоский.
         """
+        if self.context.get('request').method == 'POST':
+            if not hasattr(obj, 'is_favorited'):
+                obj.is_favorited = False
+            if not hasattr(obj, 'is_in_shopping_cart'):
+                obj.is_in_shopping_cart = False
         representation = super().to_representation(obj)
         ingredients = representation.pop('ingredients')
         ingredients_new = []

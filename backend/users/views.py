@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from api.permissions import IsCurrentUserOrAdmin
+from api.permissions import IsAdmin, IsCurrentUser, IsCurrentUserOrReadOnly
 from users.models import Subscription, User
 from users.serializers import (SubscriptionRequestSerializer,
                                SubscriptionResponseSerializer,
@@ -18,6 +18,7 @@ class UsersViewSet(DjoserUserViewSet):
 
     serializer_class = UsersSerializer
     pagination_class = LimitOffsetPagination
+    permission_classes = (IsCurrentUserOrReadOnly | IsAdmin,)
     queryset = User.objects.all()
 
     def get_queryset(self):
@@ -75,7 +76,7 @@ class UsersViewSet(DjoserUserViewSet):
         return super().me(request, *args, **kwargs)
 
     @action(["post", "delete"], detail=True,
-            permission_classes=(IsCurrentUserOrAdmin,),
+            permission_classes=(IsCurrentUser | IsAdmin,),
             serializer_class=SubscriptionRequestSerializer,
             pagination_class=LimitOffsetPagination
             )
