@@ -150,7 +150,7 @@ class RecipeViewSet(viewsets.ModelViewSet, ManyToManyMixin):
             ret, as_attachment=True, filename=file_name,
             headers={
                 'Content-Disposition': f'attachment; filename="{file_name}"',
-                'content_type': 'text/plain'
+                'Content-Type': 'text/plain'
             }
         )
 
