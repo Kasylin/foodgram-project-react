@@ -170,14 +170,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'cooking_time': {'required': True}
         }
 
-    @transaction.atomic
-    def create(self, validated_data):
-        ingredients = validated_data.pop('ingredients')
-        tags_list = validated_data.pop('tags')
-        validated_data.pop('is_favorited')
-        validated_data.pop('is_in_shopping_cart')
-        recipe = Recipe.objects.create(**validated_data)
-
+    def create_ingredients(self, recipe, ingredients):
         ingredient_list = [
             IngredientRecipe(
                 recipe=recipe,
@@ -186,6 +179,15 @@ class RecipeSerializer(serializers.ModelSerializer):
             ) for ingredient in ingredients
         ]
         IngredientRecipe.objects.bulk_create(ingredient_list)
+
+    @transaction.atomic
+    def create(self, validated_data):
+        ingredients = validated_data.pop('ingredients')
+        tags_list = validated_data.pop('tags')
+        validated_data.pop('is_favorited')
+        validated_data.pop('is_in_shopping_cart')
+        recipe = Recipe.objects.create(**validated_data)
+        self.create_ingredients(recipe, ingredients)
         recipe.tags.set([tag['id'] for tag in tags_list])
         return recipe
 
@@ -204,14 +206,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         instance.save()
         if ingredients:
             IngredientRecipe.objects.filter(recipe=instance).delete()
-            ingredient_list = [
-                IngredientRecipe(
-                    recipe=instance,
-                    ingredient_id=ingredient['id'],
-                    amount=ingredient['amount']
-                ) for ingredient in ingredients
-            ]
-            IngredientRecipe.objects.bulk_create(ingredient_list)
+            self.create_ingredients(instance, ingredients)
         if tags_list:
             instance.tags.set([tag['id'] for tag in tags_list])
         return instance
@@ -265,7 +260,7 @@ class FavoriteRecipesSerializer(serializers.ModelSerializer):
         fields = ('user', 'recipe')
         validators = [
             UniqueTogetherValidator(
-                queryset=ShoppingCart.objects.all(),
+                queryset=FavoriteRecipes.objects.all(),
                 fields=['user', 'recipe']
             )
         ]

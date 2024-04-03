@@ -60,7 +60,7 @@ class ManyToManyMixin:
                             status=status.HTTP_201_CREATED,
                             headers=headers)
         except object_model.DoesNotExist as exc:
-            return Response(*(exc.args),
+            return Response(*exc.args,
                             status=status.HTTP_400_BAD_REQUEST)
 
     @add_to_many_to_many.mapping.delete
@@ -76,10 +76,10 @@ class ManyToManyMixin:
             instance.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except object_model.DoesNotExist as exc:
-            return Response(*(exc.args),
+            return Response(*exc.args,
                             status=status.HTTP_404_NOT_FOUND)
         except model.DoesNotExist as exc:
-            return Response(*(exc.args),
+            return Response(*exc.args,
                             status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -190,26 +190,25 @@ class UsersViewSet(DjoserUserViewSet, ManyToManyMixin):
     queryset = User.objects.all()
 
     def get_queryset(self):
-        if self.request.method == 'GET':
-            if self.request.user.is_authenticated:
-                queryset = User.objects.prefetch_related('followers')
-                queryset = queryset.annotate(
-                    is_subscribed=Exists(
-                        Subscription.objects.filter(
-                            user_id=self.request.user,
-                            following=OuterRef('id')
-                        )
+        if self.request.method == 'GET' and self.request.user.is_authenticated:
+            queryset = User.objects.prefetch_related('followers')
+            queryset = queryset.annotate(
+                is_subscribed=Exists(
+                    Subscription.objects.filter(
+                        user_id=self.request.user,
+                        following=OuterRef('id')
                     )
-                ).order_by('id')
-                if self.action == 'subscriptions':
-                    return queryset.filter(is_subscribed=True)
-                return queryset.distinct()
-            else:
-                queryset = User.objects.prefetch_related('followers')
-                queryset = queryset.annotate(
-                    is_subscribed=Value(False)
-                ).order_by('id')
-                return queryset.distinct()
+                )
+            ).order_by('id')
+            if self.action == 'subscriptions':
+                return queryset.filter(is_subscribed=True)
+            return queryset.distinct()
+        elif not self.request.user.is_authenticated:
+            queryset = User.objects.prefetch_related('followers')
+            queryset = queryset.annotate(
+                is_subscribed=Value(False)
+            ).order_by('id')
+            return queryset.distinct()
 
         return User.objects.all()
 
