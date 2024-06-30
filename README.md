@@ -1,12 +1,3 @@
-# Ссылка на проект
-https://testthemeow.webhop.me/
-
-# Доступ к админке
-Логин: DjangoAdmin<br/>
-Пароль: DjangoAdmin<br/>
-Почта: admin@admin.ru
-
----
 
 ![example workflow](https://github.com/Kasylin/foodgram-project-react/actions/workflows/main.yml/badge.svg)
 
@@ -97,6 +88,3 @@ docker compose -f docker-compose.production.yml exec backend python manage.py mi
 docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
 docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/
 ```
-
-# Авторы
-Авторы [исходного репозитория](https://github.com/yandex-praktikum/foodgram-project-react), [Kasylin](https://github.com/Kasylin)
